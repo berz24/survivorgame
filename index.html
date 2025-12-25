@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Borderline Survival Game</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; padding: 20px; }
+  h1 { color: #f00; margin-bottom: 10px; }
+  #round { font-size: 20px; margin-bottom: 10px; }
+  #message { font-size: 18px; margin: 20px 0; }
+  #buttons button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+  #timer { font-size: 16px; margin: 10px 0; }
+  #survivors { margin-top: 20px; font-size: 14px; color: #0f0; text-align: left; max-height: 200px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<h1>Borderline Survival Game</h1>
+<div id="round">Round 1</div>
+<div id="message">Welcome! 30 players start. Survive to win.</div>
+<div id="buttons"></div>
+<div id="timer"></div>
+<div id="survivors"></div>
+
+<script>
+// --- Game Setup ---
+let round = 1;
+let players = [];
+for(let i=1;i<=30;i++) players.push(`Player${i}`);
+let eliminatedPlayers = [];
+
+const rounds = [
+  {type: 'choice', message: 'Choose a door: A, B, C', options: ['A', 'B', 'C']},
+  {type: 'memory', message: 'Memorize this sequence: 🍎🍌🍇', options: ['🍎🍌🍇']},
+  {type: 'quiz', message: 'Quick! 25 × 12 = ?', options: ['300', '250', '320']},
+  {type: 'random', message: 'Hidden trap! Some players will fail...', options: ['Survive','Fail']},
+  {type: 'vote', message: 'Vote to eliminate one player', options: ['Player1','Player2','Player3']},
+  {type: 'puzzle', message: 'Riddle: I speak without a mouth. What am I?', options: ['Echo', 'Shadow','Wind']},
+  {type: 'random', message: 'Random challenge!', options: ['Flip a coin','Math','Riddle']},
+  {type: 'trust', message: 'Paired with a partner. Share info or betray?', options: ['Share','Betray']},
+  {type: 'speed', message: 'Type fast: 7-2-9-4', options: ['Done']},
+  {type: 'final', message: 'Final riddle: Solve to win!', options: ['Answer1','Answer2','Answer3']}
+];
+
+// --- Start Round ---
+function startRound(){
+  if(players.length <= 1 || round > rounds.length){
+    document.getElementById('message').innerText = `🎉 Game Over! Winner: ${players[0] || 'None'}`;
+    document.getElementById('buttons').innerHTML = '';
+    document.getElementById('timer').innerText = '';
+    return;
+  }
+
+  const current = rounds[round-1];
+  document.getElementById('round').innerText = `Round ${round}`;
+  document.getElementById('message').innerText = current.message;
+
+  const btnDiv = document.getElementById('buttons');
+  btnDiv.innerHTML = '';
+  current.options.forEach(opt=>{
+    const btn = document.createElement('button');
+    btn.innerText = opt;
+    btn.onclick = ()=> handleChoice(opt, current.type);
+    btnDiv.appendChild(btn);
+  });
+
+  startTimer(20);
+  updateSurvivors();
+}
+
+// --- Handle Choices ---
+let timerInterval;
+function handleChoice(choice, type){
+  clearInterval(timerInterval);
+
+  let eliminatedThisRound = [];
+
+  if(type === 'random' || type === 'speed'){
+    let toEliminate = Math.min(players.length-1, Math.floor(Math.random()*3)+1);
+    for(let i=0;i<toEliminate;i++){
+      let idx = Math.floor(Math.random()*players.length);
+      eliminatedThisRound.push(players[idx]);
+      eliminatedPlayers.push(players[idx]);
+      players.splice(idx,1);
+    }
+  } else if(type === 'vote'){
+    let idx = Math.floor(Math.random()*players.length);
+    eliminatedThisRound.push(players[idx]);
+    eliminatedPlayers.push(players[idx]);
+    players.splice(idx,1);
+  } else {
+    let idx = Math.floor(Math.random()*players.length);
+    eliminatedThisRound.push(players[idx]);
+    eliminatedPlayers.push(players[idx]);
+    players.splice(idx,1);
+  }
+
+  document.getElementById('message').innerText = 
+    `You chose: ${choice}. Eliminated: ${eliminatedThisRound.join(', ')}. Remaining: ${players.length}`;
+
+  round++;
+  setTimeout(startRound, 4000);
+}
+
+// --- Countdown Timer ---
+function startTimer(seconds){
+  let timeLeft = seconds;
+  const timerDiv = document.getElementById('timer');
+  timerDiv.innerText = `Time left: ${timeLeft}s`;
+  timerInterval = setInterval(()=>{
+    timeLeft--;
+    timerDiv.innerText = `Time left: ${timeLeft}s`;
+    if(timeLeft <= 0){
+      clearInterval(timerInterval);
+      handleChoice('timeout', rounds[round-1].type);
+    }
+  },1000);
+}
+
+// --- Update Survivor List ---
+function updateSurvivors(){
+  document.getElementById('survivors').innerText = `Survivors (${players.length}): ${players.join(', ')}`;
+}
+
+// --- Start Game ---
+window.onload = startRound;
+
+</script>
+</body>
+</html>
+
