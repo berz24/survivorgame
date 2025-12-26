@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borderland Survival Game</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js"></script>
+    <style>
+        :root {
+            --border-red: #e74c3c;
+            --border-blue: #3498db;
+            --border-green: #2ecc71;
+            --border-yellow: #f1c40f;
+            --border-purple: #9b59b6;
+            --bg-dark: #0f1525;
+            --bg-darker: #0a0f1a;
+            --text-light: #ecf0f1;
+            --text-dim: #95a5a6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--bg-darker), #1a1f2e);
+            color: var(--text-light);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header & Status */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(15, 21, 37, 0.9);
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px solid var(--border-red);
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .game-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, var(--border-red), var(--border-yellow));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 25px;
+        }
+        
+        .status-item {
+            text-align: center;
+            padding: 10px 15px;
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 10px;
+            border: 1px solid var(--border-blue);
+            min-width: 120px;
+        }
+        
+        .status-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--border-yellow);
+        }
+        
+        .visa-display {
+            color: #e74c3c;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        /* Screens */
+        .screen {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Lobby Screen */
+        .lobby-container {
+            background: rgba(15, 21, 37, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid var(--border-blue);
+            margin-bottom: 20px;
+        }
+        
+        .player-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .player-card {
+            background: rgba(52, 152, 219, 0.15);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid var(--border-blue);
+            transition: transform 0.3s;
+        }
+        
+        .player-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--border-yellow);
+        }
+        
+        .player-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--border-red), var(--border-purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .player-ready {
+            color: var(--border-green);
+            margin-left: auto;
+        }
+        
+        .lobby-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        /* Game Screen */
+        .round-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px dashed var(--border-green);
+        }
+        
+        .round-title {
+            font-size: 2rem;
+            color: var(--border-yellow);
+            margin-bottom: 10px;
+        }
+        
+        .round-type {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .type-diamonds { background: rgba(52, 152, 219, 0.3); border: 1px solid var(--border-blue); }
+        .type-hearts { background: rgba(231, 76, 60, 0.3); border: 1px solid var(--border-red); }
+        .type-clubs { background: rgba(46, 204, 113, 0.3); border: 1px solid var(--border-green); }
+        .type-spades { background: rgba(155, 89, 182, 0.3); border: 1px solid var(--border-purple); }
+        
+        .scenario-box {
+            background: rgba(26, 31, 46, 0.8);
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid var(--border-yellow);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        
+        .choices-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .choice-btn {
+            background: rgba(52, 152, 219, 0.2);
+            border: 2px solid var(--border-blue);
+            border-radius: 10px;
+            padding: 20px;
+            color: var(--text-light);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .choice-btn:hover {
+            background: rgba(52, 152, 219, 0.4);
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .choice-icon {
+            font-size: 1.5rem;
+        }
+        
+        .result-box {
+            min-height: 100px;
+            background: rgba(26, 31, 46, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+            border: 1px solid var(--border-purple);
+            display: none;
+        }
+        
+        .result-box.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        
+        .correct { color: var(--border-green); }
+        .incorrect { color: var(--border-red); }
+        
+        /* Team Section */
+        .team-section {
+            background: rgba(46, 204, 113, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 25px 0;
+            border: 1px solid var(--border-green);
+        }
+        
+        .team-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        /* Betrayal Section */
+        .betrayal-section {
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 25px 0;
+            border: 1px solid var(--border-red);
+        }
+        
+        .betrayal-options {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        /* Leaderboard Screen */
+        .leaderboard-container {
+            background: rgba(15, 21, 37, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid var(--border-yellow);
+        }
+        
+        .scores-list {
+            list-style: none;
+            margin: 25px 0;
+        }
+        
+        .score-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            transition: transform 0.3s;
+        }
+        
+        .score-item:hover {
+            transform: translateX(10px);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .score-item:nth-child(1) {
+            background: linear-gradient(45deg, rgba(241, 196, 15, 0.2), rgba(231, 76, 60, 0.2));
+            border: 2px solid var(--border-yellow);
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, var(--border-blue), var(--border-purple));
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, var(--border-red), #c0392b);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, var(--border-green), #27ae60);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(45deg, var(--border-yellow), #f39c12);
+            color: var(--bg-dark);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        /* Game Grid */
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .grid-cell {
+            aspect-ratio: 1;
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid var(--border-blue);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .grid-cell:hover {
+            background: rgba(52, 152, 219, 0.3);
+            transform: scale(1.05);
+        }
+        
+        /* Sound Controls */
+        .sound-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .sound-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(15, 21, 37, 0.8);
+            border: 2px solid var(--border-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+        }
+        
+        .sound-btn:hover {
+            background: rgba(52, 152, 219, 0.8);
+            transform: scale(1.1);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .choices-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .game-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header with Game Status -->
+        <header class="header">
+            <h1 class="game-title">BORDERLAND SURVIVAL</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-label">VISA</div>
+                    <div class="status-value visa-display" id="visaCount">7</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">LIVES</div>
+                    <div class="status-value" id="lifeCount">3</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">SCORE</div>
+                    <div class="status-value" id="scoreCount">0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">PLAYERS</div>
+                    <div class="status-value" id="playerCount">1</div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Lobby Screen -->
+        <section id="lobbyScreen" class="screen active">
+            <div class="lobby-container">
+                <h2 style="text-align: center; margin-bottom: 20px; color: var(--border-yellow);">
+                    <i class="fas fa-door-open"></i> BORDERLAND LOBBY
+                </h2>
+                <p style="text-align: center; margin-bottom: 30px; color: var(--text-dim);">
+                    Wait for players to join. Minimum 2 players needed to start. <br>
+                    Game starts automatically when all players are ready.
+                </p>
+                
+                <div class="player-list" id="playerList">
+                    <!-- Player cards will be added here -->
+                    <div class="player-card">
+                        <div class="player-avatar">YOU</div>
+                        <div class="player-info">
+                            <div class="player-name" id="playerNameDisplay">You</div>
+                            <div class="player-status">Host</div>
+                        </div>
+                        <div class="player-ready"><i class="fas fa-check-circle"></i> Ready</div>
+                    </div>
+                </div>
+                
+                <div class="lobby-controls">
+                    <button class="btn btn-success" id="readyBtn">
+                        <i class="fas fa-check"></i> READY TO PLAY
+                    </button>
+                    <button class="btn btn-warning" id="changeNameBtn">
+                        <i class="fas fa-user-edit"></i> CHANGE NAME
+                    </button>
+                    <button class="btn btn-danger" id="leaveLobbyBtn">
+                        <i class="fas fa-sign-out-alt"></i> LEAVE LOBBY
+                    </button>
+                </div>
+                
+                <div style="margin-top: 30px; text-align: center; color: var(--border-blue);">
+                    <p><i class="fas fa-info-circle"></i> Game will start in: <span id="countdown">--:--</span></p>
+                    <p style="font-size: 0.9rem; margin-top: 10px;">Waiting for more players...</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Game Screen -->
+        <section id="gameScreen" class="screen">
+            <div class="round-header">
+                <h2 class="round-title" id="roundTitle">ROUND 1: THE FIRST TEST</h2>
+                <div class="round-type" id="roundType">DIAMONDS</div>
+                <p id="roundDescription">Intelligence Challenge</p>
+            </div>
+            
+            <div class="scenario-box" id="scenarioBox">
+                <p id="scenarioText">Three doors stand before you. A, B, and C. Each promises a different fate. You must choose one.</p>
+                <p id="roundInstruction" style="margin-top: 15px; color: var(--border-yellow); font-weight: bold;">
+                    Choose a door: <strong>A</strong>, <strong>B</strong>, or <strong>C</strong>.
+                </p>
+            </div>
+            
+            <!-- Dynamic sections that appear based on game type -->
+            <div class="team-section" id="teamSection" style="display: none;">
+                <h3><i class="fas fa-users"></i> TEAM SELECTION</h3>
+                <p>Choose your teammates for this challenge. Your choices will affect your survival.</p>
+                <div class="team-members" id="teamMembers">
+                    <!-- Team member options will appear here -->
+                </div>
+            </div>
+            
+            <div class="betrayal-section" id="betrayalSection" style="display: none;">
+                <h3><i class="fas fa-user-secret"></i> BETRAYAL OPPORTUNITY</h3>
+                <p>You have a chance to betray your team for personal gain. Choose wisely.</p>
+                <div class="betrayal-options">
+                    <button class="btn btn-danger" id="betrayBtn"><i class="fas fa-skull-crossbones"></i> BETRAY TEAM</button>
+                    <button class="btn btn-success" id="loyalBtn"><i class="fas fa-handshake"></i> REMAIN LOYAL</button>
+                </div>
+            </div>
+            
+            <div class="game-grid" id="puzzleGrid" style="display: none;">
+                <!-- Grid for puzzle games will be generated here -->
+            </div>
+            
+            <div class="choices-container" id="choicesContainer">
+                <!-- Choice buttons will be added here -->
+            </div>
+            
+            <div class="result-box" id="resultBox">
+                <!-- Game results will appear here -->
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-warning" id="nextRoundBtn" style="display: none;">
+                    <i class="fas fa-forward"></i> CONTINUE TO NEXT ROUND
+                </button>
+            </div>
+        </section>
+        
+        <!-- Leaderboard Screen -->
+        <section id="leaderboardScreen" class="screen">
+            <div class="leaderboard-container">
+                <h2 style="text-align: center; margin-bottom: 20px; color: var(--border-yellow);">
+                    <i class="fas fa-trophy"></i> HALL OF SURVIVORS
+                </h2>
+                
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div style="display: inline-flex; gap: 15px;">
+                        <button class="btn btn-primary" id="viewGlobalLeaderboard">
+                            <i class="fas fa-globe"></i> GLOBAL LEADERBOARD
+                        </button>
+                        <button class="btn btn-success" id="playAgainBtn">
+                            <i class="fas fa-redo"></i> PLAY AGAIN
+                        </button>
+                        <button class="btn btn-danger" id="backToLobbyBtn">
+                            <i class="fas fa-home"></i> BACK TO LOBBY
+                        </button>
+                    </div>
+                </div>
+                
+                <ol class="scores-list" id="scoresList">
+                    <!-- Leaderboard scores will appear here -->
+                    <li class="score-item">
+                        <div class="score-rank">1.</div>
+                        <div class="score-name">Player Name</div>
+                        <div class="score-value">1000 pts</div>
+                        <div class="score-date">Today</div>
+                    </li>
+                </ol>
+            </div>
+        </section>
+        
+        <!-- Sound Controls -->
+        <div class="sound-controls">
+            <button class="sound-btn" id="toggleMusicBtn">
+                <i class="fas fa-music"></i>
+            </button>
+            <button class="sound-btn" id="toggleSoundBtn">
+                <i class="fas fa-volume-up"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Audio Elements -->
+    <audio id="backgroundMusic" loop>
+        <source src="https://assets.mixkit.co/music/preview/mixkit-game-show-suspense-waiting-667.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="correctSound">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="incorrectSound">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="gameStartSound">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-game-show-intro-331.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="betrayalSound">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-horror-laugh-424.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Firebase Configuration -->
+    <script>
+        // ============================================
+        // FIREBASE CONFIGURATION
+        // ============================================
+        // REPLACE WITH YOUR OWN FIREBASE CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2vC3z0ExAm9_9qJ6V4vRlL8gFwQeXyZ0",
+            authDomain: "borderland-survival-game.firebaseapp.com",
+            projectId: "borderland-survival-game",
+            storageBucket: "borderland-survival-game.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890"
+        };
+        
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(app);
+        
+        // ============================================
+        // GAME STATE & CONFIGURATION
+        // ============================================
+        const gameState = {
+            playerId: Math.random().toString(36).substring(2, 9),
+            playerName: "Player_" + Math.floor(Math.random() * 1000),
+            visaDays: 7,
+            lives: 3,
+            score: 0,
+            currentRound: 0,
+            gameActive: false,
+            inLobby: true,
+            ready: false,
+            soundEnabled: true,
+            musicEnabled: false,
+            currentGameId: null
+        };
+        
+        // ============================================
+        // ENHANCED GAME ROUNDS WITH COMPLEX MECHANICS
+        // ============================================
+        const gameRounds = [
+            // Round 1: Classic Door Choice (Diamonds)
+            {
+                id: 1,
+                title: "ROUND 1: THE FIRST TEST",
+                type: "diamonds",
+                typeName: "DIAMONDS",
+                description: "Intelligence Challenge",
+                scenario: "Three doors stand before you. A, B, and C. Behind one is safety, behind another is a trap, and behind the last is a bonus. You have 30 seconds to choose.",
+                instruction: "Choose a door: A, B, or C.",
+                choices: [
+                    { text: "Door A - The leftmost door with a triangle symbol", value: "A", icon: "🔺" },
+                    { text: "Door B - The center door with a circle symbol", value: "B", icon: "⭕" },
+                    { text: "Door C - The rightmost door with a square symbol", value: "C", icon: "◼️" }
+                ],
+                correctAnswer: "B",
+                points: 100,
+                livesAtRisk: 1,
+                visaDaysAtRisk: 1,
+                timeLimit: 30,
+                resultMessages: {
+                    win: "✅ Door B opens to an empty, safe room. You hear a click and a voice says 'Wise choice.' You gain 100 points.",
+                    lose: "❌ The door creaks open to reveal a dead end. A recorded voice chuckles: 'Wrong choice. Try again next time.' You lose 1 life."
+                }
+            },
+            
+            // Round 2: Team Selection (Clubs)
+            {
+                id: 2,
+                title: "ROUND 2: ALLIANCE FORMATION",
+                type: "clubs",
+                typeName: "CLUBS",
+                description: "Teamwork Challenge",
+                scenario: "You must form a team of 3 survivors for the next challenge. Your survival depends on choosing capable allies. Other players are waiting to be selected.",
+                instruction: "Select TWO allies to join your team.",
+                isTeamRound: true,
+                teamSize: 3,
+                choices: [
+                    { text: "Select Player 1 as ally", value: "ally1", icon: "👤" },
+                    { text: "Select Player 2 as ally", value: "ally2", icon: "👤" },
+                    { text: "Select Player 3 as ally", value: "ally3", icon: "👤" },
+                    { text: "Select Player 4 as ally", value: "ally4", icon: "👤" }
+                ],
+                correctAnswer: ["ally1", "ally3"], // Best team composition
+                points: 150,
+                livesAtRisk: 0,
+                visaDaysAtRisk: 0,
+                resultMessages: {
+                    win: "✅ Your team formation is strong! The system approves your selection. Your team gains 150 points and a teamwork bonus.",
+                    lose: "⚠️ Your team formation is weak. The system accepts it but warns of future challenges. No bonus points."
+                }
+            },
+            
+            // Round 3: Logic Puzzle (Diamonds)
+            {
+                id: 3,
+                title: "ROUND 3: THE NUMBER GRID",
+                type: "diamonds",
+                typeName: "DIAMONDS",
+                description: "Logic Puzzle",
+                scenario: "A 4x4 grid appears with hidden numbers. The rule is: Each row and column must sum to 34. Some numbers are revealed. Find the missing number in the highlighted cell.",
+                instruction: "What number belongs in the red cell?",
+                isPuzzleRound: true,
+                puzzleGrid: [
+                    [16, 3, 2, 13],
+                    [5, 10, 11, 8],
+                    [9, 6, 7, 12],
+                    [4, 15, 14, "?"]
+                ],
+                correctAnswer: "1",
+                points: 200,
+                livesAtRisk: 1,
+                visaDaysAtRisk: 1,
+                timeLimit: 45,
+                resultMessages: {
+                    win: "✅ Correct! The missing number is 1. The grid now forms a perfect magic square. You gain 200 points.",
+                    lose: "❌ Incorrect. The grid flickers and resets. You lose 1 life and 1 visa day."
+                }
+            },
+            
+            // Round 4: Betrayal Opportunity (Hearts)
+            {
+                id: 4,
+                title: "ROUND 4: THE BETRAYAL GAME",
+                type: "hearts",
+                typeName: "HEARTS",
+                description: "Psychological Challenge",
+                scenario: "You and your team have found a cache of supplies. The system offers you a choice: Share equally with your team, or betray them and take everything for yourself.",
+                instruction: "Will you betray your team for personal gain?",
+                isBetrayalRound: true,
+                choices: [
+                    { text: "Share equally with team", value: "share", icon: "🤝" },
+                    { text: "Betray team and take all", value: "betray", icon: "🗡️" }
+                ],
+                // In betrayal rounds, the "correct" answer depends on game state
+                points: {
+                    share: 100,
+                    betray: 300
+                },
+                livesAtRisk: {
+                    share: 0,
+                    betray: 2  // High risk if betrayal backfires
+                },
+                visaDaysAtRisk: {
+                    share: 0,
+                    betray: 3
+                },
+                resultMessages: {
+                    share: "✅ You choose to share. Your team appreciates your loyalty. You gain 100 points and team trust increases.",
+                    betray: "❌ You betray your team. You gain 300 points immediately, but lose 2 lives and 3 visa days. Your team now distrusts you."
+                }
+            },
+            
+            // Round 5: Endurance Challenge (Spades)
+            {
+                id: 5,
+                title: "ROUND 5: SURVIVAL ENDURANCE",
+                type: "spades",
+                typeName: "SPADES",
+                description: "Physical Challenge",
+                scenario: "You must hold a button for 10 seconds without releasing. If you succeed, you pass. If you fail, you face consequences. The challenge tests your willpower.",
+                instruction: "Click and HOLD the button for 10 seconds.",
+                isEnduranceRound: true,
+                enduranceTime: 10,
+                points: 250,
+                livesAtRisk: 2,
+                visaDaysAtRisk: 2,
+                resultMessages: {
+                    win: "✅ You endure the full 10 seconds! Your willpower is strong. You gain 250 points.",
+                    lose: "❌ You released too early! The system penalizes your lack of endurance. You lose 2 lives and 2 visa days."
+                }
+            },
+            
+            // Round 6: Final Team Puzzle (Clubs/Diamonds Mix)
+            {
+                id: 6,
+                title: "FINAL ROUND: THE ESCAPE PUZZLE",
+                type: "clubs",
+                typeName: "CLUBS & DIAMONDS",
+                description: "Team Intelligence Challenge",
+                scenario: "Your team is locked in a room with 4 puzzles. Each team member must solve one puzzle to generate a code digit. Work together to escape before time runs out.",
+                instruction: "Solve your assigned puzzle to generate your team's escape code.",
+                isFinalRound: true,
+                teamPuzzles: [
+                    { puzzle: "2, 4, 8, 16, ?", answer: "32" },
+                    { puzzle: "What is 7 × 8 + 5?", answer: "61" },
+                    { puzzle: "Cipher: Gsviv rh mlg sfnzmw", answer: "there is no answer" },
+                    { puzzle: "Opposite of 'always'", answer: "never" }
+                ],
+                correctAnswer: "3261thereisnoanswernever", // Combined answers
+                points: 500,
+                livesAtRisk: 3,
+                visaDaysAtRisk: 3,
+                timeLimit: 120,
+                resultMessages: {
+                    win: "🎉 VICTORY! Your team solves all puzzles and escapes! You gain 500 points and win the game!",
+                    lose: "💀 FAILURE! Time runs out. The room seals forever. You lose all remaining lives and visa days."
+                }
+            }
+        ];
+        
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const screens = {
+            lobby: document.getElementById('lobbyScreen'),
+            game: document.getElementById('gameScreen'),
+            leaderboard: document.getElementById('leaderboardScreen')
+        };
+        
+        const statusElements = {
+            visa: document.getElementById('visaCount'),
+            life: document.getElementById('lifeCount'),
+            score: document.getElementById('scoreCount'),
+            players: document.getElementById('playerCount')
+        };
+        
+        const gameElements = {
+            roundTitle: document.getElementById('roundTitle'),
+            roundType: document.getElementById('roundType'),
+            roundDescription: document.getElementById('roundDescription'),
+            scenarioText: document.getElementById('scenarioText'),
+            roundInstruction: document.getElementById('roundInstruction'),
+            choicesContainer: document.getElementById('choicesContainer'),
+            resultBox: document.getElementById('resultBox'),
+            nextRoundBtn: document.getElementById('nextRoundBtn'),
+            teamSection: document.getElementById('teamSection'),
+            betrayalSection: document.getElementById('betrayalSection'),
+            puzzleGrid: document.getElementById('puzzleGrid'),
+            teamMembers: document.getElementById('teamMembers')
+        };
+        
+        const lobbyElements = {
+            playerList: document.getElementById('playerList'),
+            readyBtn: document.getElementById('readyBtn'),
+            changeNameBtn: document.getElementById('changeNameBtn'),
+            leaveLobbyBtn: document.getElementById('leaveLobbyBtn'),
+            countdown: document.getElementById('countdown'),
+            playerNameDisplay: document.getElementById('playerNameDisplay')
+        };
+        
+        const soundElements = {
+            backgroundMusic: document.getElementById('backgroundMusic'),
+            correctSound: document.getElementById('correctSound'),
+            incorrectSound: document.getElementById('incorrectSound'),
+            gameStartSound: document.getElementById('gameStartSound'),
+            betrayalSound: document.getElementById('betrayalSound'),
+            toggleMusicBtn: document.getElementById('toggleMusicBtn'),
+            toggleSoundBtn: document.getElementById('toggleSoundBtn')
+        };
+        
+        const leaderboardElements = {
+            scoresList: document.getElementById('scoresList'),
+            viewGlobalLeaderboard: document.getElementById('viewGlobalLeaderboard'),
+            playAgainBtn: document.getElementById('playAgainBtn'),
+            backToLobbyBtn: document.getElementById('backToLobbyBtn')
+        };
+        
+        // ============================================
+        // FIREBASE DATABASE REFERENCES
+        // ============================================
+        let lobbyRef = null;
+        let gameRef = null;
+        let leaderboardRef = db.collection("leaderboard");
+        let lobbyListener = null;
+        let gameListener = null;
+        
+        // ============================================
+        // GAME INITIALIZATION
+        // ============================================
+        function initGame() {
+            // Set player name
+            const savedName = localStorage.getItem('borderlandPlayerName');
+            if (savedName) {
+                gameState.playerName = savedName;
+            } else {
+                const name = prompt("Enter your player name:", gameState.playerName);
+                if (name && name.trim() !== "") {
+                    gameState.playerName = name.trim();
+                    localStorage.setItem('borderlandPlayerName', gameState.playerName);
+                }
+            }
+            
+            lobbyElements.playerNameDisplay.textContent = gameState.playerName;
+            updateStatusDisplay();
+            
+            // Initialize event listeners
+            initEventListeners();
+            
+            // Initialize sound
+            initSound();
+            
+            // Try to join or create a lobby
+            setupLobby();
+        }
+        
+        // ============================================
+        // EVENT LISTENERS SETUP
+        // ============================================
+        function initEventListeners() {
+            // Lobby buttons
+            lobbyElements.readyBtn.addEventListener('click', toggleReady);
+            lobbyElements.changeNameBtn.addEventListener('click', changePlayerName);
+            lobbyElements.leaveLobbyBtn.addEventListener('click', leaveLobby);
+            
+            // Game buttons
+            gameElements.nextRoundBtn.addEventListener('click', nextRound);
+            
+            // Sound buttons
+            soundElements.toggleMusicBtn.addEventListener('click', toggleMusic);
+            soundElements.toggleSoundBtn.addEventListener('click', toggleSound);
+            
+            // Leaderboard buttons
+            leaderboardElements.playAgainBtn.addEventListener('click', restartGame);
+            leaderboardElements.backToLobbyBtn.addEventListener('click', backToLobby);
+            leaderboardElements.viewGlobalLeaderboard.addEventListener('click', showGlobalLeaderboard);
+        }
+        
+        // ============================================
+        // LOBBY SYSTEM
+        // ============================================
+        function setupLobby() {
+            // Generate a lobby ID (in a real game, you'd have matchmaking)
+            const lobbyId = "lobby_" + Math.floor(Math.random() * 1000);
+            lobbyRef = db.collection("lobbies").doc(lobbyId);
+            gameState.currentGameId = lobbyId;
+            
+            // Join the lobby
+            lobbyRef.set({
+                id: lobbyId,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                status: "waiting",
+                players: firebase.firestore.FieldValue.arrayUnion({
+                    id: gameState.playerId,
+                    name: gameState.playerName,
+                    ready: false,
+                    joinedAt: new Date().toISOString()
+                })
+            }, { merge: true });
+            
+            // Listen for lobby updates
+            lobbyListener = lobbyRef.onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    updateLobbyDisplay(data);
+                    
+                    // Check if game should start
+                    if (data.status === "starting") {
+                        startGameCountdown(data.startTime);
+                    } else if (data.status === "active") {
+                        startGame();
+                    }
+                }
+            });
+            
+            showScreen('lobby');
+        }
+        
+        function updateLobbyDisplay(lobbyData) {
+            const players = lobbyData.players || [];
+            lobbyElements.playerList.innerHTML = '';
+            
+            // Add player cards
+            players.forEach((player, index) => {
+                const playerCard = document.createElement('div');
+                playerCard.className = 'player-card';
+                playerCard.innerHTML = `
+                    <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
+                    <div class="player-info">
+                        <div class="player-name">${player.name} ${player.id === gameState.playerId ? '(YOU)' : ''}</div>
+                        <div class="player-status">${index === 0 ? 'Host' : 'Player'}</div>
+                    </div>
+                    <div class="player-ready">${player.ready ? '<i class="fas fa-check-circle"></i> Ready' : '<i class="fas fa-clock"></i> Waiting'}</div>
+                `;
+                lobbyElements.playerList.appendChild(playerCard);
+            });
+            
+            // Update player count
+            statusElements.players.textContent = players.length;
+            
+            // Update ready button text
+            lobbyElements.readyBtn.innerHTML = gameState.ready ? 
+                '<i class="fas fa-times"></i> NOT READY' : 
+                '<i class="fas fa-check"></i> READY TO PLAY';
+            lobbyElements.readyBtn.className = gameState.ready ? 
+                'btn btn-danger' : 'btn btn-success';
+        }
+        
+        function toggleReady() {
+            gameState.ready = !gameState.ready;
+            
+            // Update player status in Firebase
+            lobbyRef.update({
+                players: firebase.firestore.FieldValue.arrayRemove({
+                    id: gameState.playerId,
+                    name: gameState.playerName,
+                    ready: !gameState.ready
+                })
+            });
+            
+            lobbyRef.update({
+                players: firebase.firestore.FieldValue.arrayUnion({
+                    id: gameState.playerId,
+                    name: gameState.playerName,
+                    ready: gameState.ready,
+                    joinedAt: new Date().toISOString()
+                })
+            });
+            
+            // Check if all players are ready (minimum 2 players)
+            lobbyRef.get().then((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const players = data.players || [];
+                    const readyPlayers = players.filter(p => p.ready);
+                    
+                    if (readyPlayers.length >= 2 && readyPlayers.length === players.length) {
+                        // All players ready, start countdown
+                        lobbyRef.update({
+                            status: "starting",
+                            startTime: new Date(Date.now() + 10000).toISOString() // 10 seconds from now
+                        });
+                    }
+                }
+            });
+        }
+        
+        function startGameCountdown(startTime) {
+            const targetTime = new Date(startTime).getTime();
+            
+            const countdownInterval = setInterval(() => {
+                const now = new Date().getTime();
+                const distance = targetTime - now;
+                
+                if (distance <= 0) {
+                    clearInterval(countdownInterval);
+                    lobbyRef.update({ status: "active" });
+                } else {
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                    lobbyElements.countdown.textContent = `00:${seconds.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+        
+        function startGame() {
+            // Play game start sound
+            playSound(soundElements.gameStartSound);
+            
+            // Switch to game screen
+            showScreen('game');
+            
+            // Reset game state
+            gameState.currentRound = 0;
+            gameState.gameActive = true;
+            gameState.inLobby = false;
+            
+            // Load first round
+            loadRound(gameState.currentRound);
+            
+            // Start visa countdown (1 day per minute for demo)
+            startVisaCountdown();
+        }
+        
+        function startVisaCountdown() {
+            setInterval(() => {
+                if (gameState.gameActive && gameState.visaDays > 0) {
+                    gameState.visaDays--;
+                    updateStatusDisplay();
+                    
+                    if (gameState.visaDays <= 0) {
+                        gameOver("Visa expired");
+                    }
+                }
+            }, 60000); // 1 minute = 1 visa day for demo
+        }
+        
+        // ============================================
+        // GAME ROUNDS LOGIC
+        // ============================================
+        function loadRound(roundIndex) {
+            if (roundIndex >= gameRounds.length) {
+                endGame(true); // Victory
+                return;
+            }
+            
+            const round = gameRounds[roundIndex];
+            gameState.currentRound = roundIndex;
+            
+            // Update round display
+            gameElements.roundTitle.textContent = round.title;
+            gameElements.roundType.textContent = round.typeName;
+            gameElements.roundType.className = `round-type type-${round.type}`;
+            gameElements.roundDescription.textContent = round.description;
+            gameElements.scenarioText.textContent = round.scenario;
+            gameElements.roundInstruction.textContent = round.instruction;
+            
+            // Hide all special sections
+            gameElements.teamSection.style.display = 'none';
+            gameElements.betrayalSection.style.display = 'none';
+            gameElements.puzzleGrid.style.display = 'none';
+            gameElements.resultBox.classList.remove('show');
+            gameElements.nextRoundBtn.style.display = 'none';
+            
+            // Clear previous choices
+            gameElements.choicesContainer.innerHTML = '';
+            
+            // Show appropriate sections based on round type
+            if (round.isTeamRound) {
+                loadTeamRound(round);
+            } else if (round.isBetrayalRound) {
+                loadBetrayalRound(round);
+            } else if (round.isPuzzleRound) {
+                loadPuzzleRound(round);
+            } else if (round.isEnduranceRound) {
+                loadEnduranceRound(round);
+            } else if (round.isFinalRound) {
+                loadFinalRound(round);
+            } else {
+                loadStandardRound(round);
+            }
+        }
+        
+        function loadStandardRound(round) {
+            round.choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.className = 'choice-btn';
+                button.innerHTML = `
+                    <span class="choice-icon">${choice.icon}</span>
+                    <span class="choice-text">${choice.text}</span>
+                `;
+                button.addEventListener('click', () => handleChoice(choice.value, round));
+                gameElements.choicesContainer.appendChild(button);
+            });
+            
+            // Set time limit if applicable
+            if (round.timeLimit) {
+                setTimeout(() => {
+                    if (gameState.gameActive) {
+                        handleTimeUp(round);
+                    }
+                }, round.timeLimit * 1000);
+            }
+        }
+        
+        function loadTeamRound(round) {
+            gameElements.teamSection.style.display = 'block';
+            
+            // Simulate team members (in real game, these would be actual players)
+            const teamMembers = [
+                { id: "ally1", name: "Alex (Strong)", description: "High strength, low intelligence" },
+                { id: "ally2", name: "Sam (Smart)", description: "High intelligence, low endurance" },
+                { id: "ally3", name: "Jordan (Balanced)", description: "Well-rounded abilities" },
+                { id: "ally4", name: "Taylor (Stealthy)", description: "High stealth, low strength" }
+            ];
+            
+            gameElements.teamMembers.innerHTML = '';
+            teamMembers.forEach(member => {
+                const memberDiv = document.createElement('div');
+                memberDiv.className = 'player-card';
+                memberDiv.innerHTML = `
+                    <div class="player-avatar">${member.name.charAt(0)}</div>
+                    <div class="player-info">
+                        <div class="player-name">${member.name}</div>
+                        <div class="player-status">${member.description}</div>
+                    </div>
+                    <button class="btn btn-primary select-ally" data-id="${member.id}">Select</button>
+                `;
+                gameElements.teamMembers.appendChild(memberDiv);
+            });
+            
+            // Add event listeners to select buttons
+            document.querySelectorAll('.select-ally').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const selectedId = e.target.getAttribute('data-id');
+                    handleTeamSelection(selectedId, round);
+                });
+            });
+        }
+        
+        function loadBetrayalRound(round) {
+            gameElements.betrayalSection.style.display = 'block';
+            
+            document.getElementById('betrayBtn').addEventListener('click', () => {
+                handleBetrayalChoice('betray', round);
+            });
+            
+            document.getElementById('loyalBtn').addEventListener('click', () => {
+                handleBetrayalChoice('share', round);
+            });
+        }
+        
+        function loadPuzzleRound(round) {
+            gameElements.puzzleGrid.style.display = 'grid';
+            gameElements.puzzleGrid.innerHTML = '';
+            
+            // Create puzzle grid
+            round.puzzleGrid.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'grid-cell';
+                    cellDiv.textContent = cell === "?" ? "?" : cell;
+                    
+                    if (cell === "?") {
+                        cellDiv.style.background = 'rgba(231, 76, 60, 0.3)';
+                        cellDiv.style.borderColor = 'var(--border-red)';
+                        cellDiv.addEventListener('click', () => solvePuzzleCell(round));
+                    }
+                    
+                    gameElements.puzzleGrid.appendChild(cellDiv);
+                });
+            });
+        }
+        
+        function loadEnduranceRound(round) {
+            const enduranceBtn = document.createElement('button');
+            enduranceBtn.className = 'choice-btn';
+            enduranceBtn.style.width = '100%';
+            enduranceBtn.style.justifyContent = 'center';
+            enduranceBtn.innerHTML = `
+                <span class="choice-icon">⏱️</span>
+                <span class="choice-text">HOLD FOR ${round.enduranceTime} SECONDS</span>
+            `;
+            
+            let holdTimer = null;
+            let holdStart = null;
+            
+            enduranceBtn.addEventListener('mousedown', () => {
+                holdStart = Date.now();
+                enduranceBtn.style.background = 'rgba(46, 204, 113, 0.4)';
+                enduranceBtn.style.borderColor = 'var(--border-green)';
+                
+                holdTimer = setTimeout(() => {
+                    // Success - held for required time
+                    handleEnduranceSuccess(round);
+                }, round.enduranceTime * 1000);
+            });
+            
+            enduranceBtn.addEventListener('mouseup', () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    
+                    if (holdStart && Date.now() - holdStart < round.enduranceTime * 1000) {
+                        // Failed - released too early
+                        handleEnduranceFailure(round);
+                    }
+                }
+                
+                enduranceBtn.style.background = '';
+                enduranceBtn.style.borderColor = '';
+            });
+            
+            enduranceBtn.addEventListener('mouseleave', () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    enduranceBtn.style.background = '';
+                    enduranceBtn.style.borderColor = '';
+                }
+            });
+            
+            gameElements.choicesContainer.appendChild(enduranceBtn);
+        }
+        
+        function loadFinalRound(round) {
+            gameElements.scenarioText.innerHTML = `
+                ${round.scenario}<br><br>
+                <strong>Team Puzzles:</strong><br>
+                ${round.teamPuzzles.map((p, i) => `${i+1}. ${p.puzzle}`).join('<br>')}
+            `;
+            
+            const finalInput = document.createElement('div');
+            finalInput.style.margin = '20px 0';
+            finalInput.innerHTML = `
+                <input type="text" id="finalAnswer" placeholder="Enter the combined escape code" style="width: 100%; padding: 15px; font-size: 1.2rem; border-radius: 8px; border: 2px solid var(--border-yellow); background: rgba(0,0,0,0.5); color: white;">
+                <button id="submitFinalAnswer" class="btn btn-success" style="width: 100%; margin-top: 15px; padding: 15px;">
+                    <i class="fas fa-paper-plane"></i> SUBMIT ESCAPE CODE
+                </button>
+            `;
+            
+            gameElements.choicesContainer.appendChild(finalInput);
+            
+            document.getElementById('submitFinalAnswer').addEventListener('click', () => {
+                const answer = document.getElementById('finalAnswer').value.toLowerCase().replace(/\s+/g, '');
+                handleFinalAnswer(answer, round);
+            });
+            
+            // Set time limit
+            if (round.timeLimit) {
+                setTimeout(() => {
+                    if (gameState.gameActive) {
+                        handleTimeUp(round);
+                    }
+                }, round.timeLimit * 1000);
+            }
+        }
+        
+        // ============================================
+        // GAME LOGIC HANDLERS
+        // ============================================
+        function handleChoice(choice, round) {
+            if (!gameState.gameActive) return;
+            
+            const isCorrect = (choice === round.correctAnswer);
+            processRoundResult(isCorrect, round);
+        }
+        
+        function handleTeamSelection(allyId, round) {
+            // In a real multiplayer game, this would involve other players
+            // For demo, we'll simulate a result
+            const isCorrect = round.correctAnswer.includes(allyId);
+            processRoundResult(isCorrect, round);
+        }
+        
+        function handleBetrayalChoice(choice, round) {
+            const isBetrayal = (choice === 'betray');
+            
+            if (isBetrayal) {
+                // Play betrayal sound
+                playSound(soundElements.betrayalSound);
+                
+                // High risk, high reward
+                gameState.score += round.points.betray || 300;
+                gameState.lives -= round.livesAtRisk.betray || 2;
+                gameState.visaDays -= round.visaDaysAtRisk.betray || 3;
+                
+                showResult(round.resultMessages.betray, false);
+            } else {
+                // Safe choice
+                gameState.score += round.points.share || 100;
+                showResult(round.resultMessages.share, true);
+            }
+            
+            updateStatusDisplay();
+            gameElements.nextRoundBtn.style.display = 'block';
+            
+            // Check for game over
+            if (gameState.lives <= 0) {
+                setTimeout(() => gameOver("No lives remaining"), 2000);
+            } else if (gameState.visaDays <= 0) {
+                setTimeout(() => gameOver("Visa expired"), 2000);
+            }
+        }
+        
+        function solvePuzzleCell(round) {
+            const answer = prompt("Enter the missing number for the magic square:");
+            const isCorrect = (answer === round.correctAnswer);
+            processRoundResult(isCorrect, round);
+        }
+        
+        function handleEnduranceSuccess(round) {
+            playSound(soundElements.correctSound);
+            gameState.score += round.points;
+            showResult(round.resultMessages.win, true);
+            updateStatusDisplay();
+            gameElements.nextRoundBtn.style.display = 'block';
+        }
+        
+        function handleEnduranceFailure(round) {
+            playSound(soundElements.incorrectSound);
+            gameState.lives -= round.livesAtRisk;
+            gameState.visaDays -= round.visaDaysAtRisk;
+            showResult(round.resultMessages.lose, false);
+            updateStatusDisplay();
+            gameElements.nextRoundBtn.style.display = 'block';
+            
+            if (gameState.lives <= 0) {
+                setTimeout(() => gameOver("No lives remaining"), 2000);
+            }
+        }
+        
+        function handleFinalAnswer(answer, round) {
+            const isCorrect = (answer === round.correctAnswer.toLowerCase().replace(/\s+/g, ''));
+            processRoundResult(isCorrect, round);
+        }
+        
+        function handleTimeUp(round) {
+            if (!gameState.gameActive) return;
+            
+            playSound(soundElements.incorrectSound);
+            gameState.lives -= round.livesAtRisk || 1;
+            gameState.visaDays -= round.visaDaysAtRisk || 1;
+            
+            showResult("⏰ TIME'S UP! You didn't respond in time. You lose 1 life and 1 visa day.", false);
+            updateStatusDisplay();
+            gameElements.nextRoundBtn.style.display = 'block';
+            
+            if (gameState.lives <= 0) {
+                setTimeout(() => gameOver("No lives remaining"), 2000);
+            }
+        }
+        
+        function processRoundResult(isCorrect, round) {
+            if (!gameState.gameActive) return;
+            
+            if (isCorrect) {
+                playSound(soundElements.correctSound);
+                gameState.score += round.points;
+                showResult(round.resultMessages.win, true);
+            } else {
+                playSound(soundElements.incorrectSound);
+                gameState.lives -= round.livesAtRisk || 1;
+                gameState.visaDays -= round.visaDaysAtRisk || 1;
+                showResult(round.resultMessages.lose, false);
+            }
+            
+            updateStatusDisplay();
+            gameElements.nextRoundBtn.style.display = 'block';
+            
+            // Disable all choice buttons
+            document.querySelectorAll('.choice-btn').forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+                btn.style.cursor = 'not-allowed';
+            });
+            
+            // Check for game over
+            if (gameState.lives <= 0) {
+                setTimeout(() => gameOver("No lives remaining"), 2000);
+            } else if (gameState.visaDays <= 0) {
+                setTimeout(() => gameOver("Visa expired"), 2000);
+            }
+        }
+        
+        function showResult(message, isCorrect) {
+            gameElements.resultBox.innerHTML = `
+                <p class="${isCorrect ? 'correct' : 'incorrect'}">
+                    ${message}
+                </p>
+                <p style="margin-top: 10px;">
+                    <strong>Current Score:</strong> ${gameState.score} |
+                    <strong>Lives:</strong> ${gameState.lives} |
+                    <strong>Visa Days:</strong> ${gameState.visaDays}
+                </p>
+            `;
+            gameElements.resultBox.classList.add('show');
+        }
+        
+        function nextRound() {
+            gameState.currentRound++;
+            loadRound(gameState.currentRound);
+        }
+        
+        // ============================================
+        // GAME STATE MANAGEMENT
+        // ============================================
+        function updateStatusDisplay() {
+            statusElements.visa.textContent = gameState.visaDays;
+            statusElements.life.textContent = gameState.lives;
+            statusElements.score.textContent = gameState.score;
+            
+            // Visual feedback for low resources
+            statusElements.visa.className = gameState.visaDays <= 2 ? 
+                'status-value visa-display warning' : 'status-value visa-display';
+            statusElements.life.className = gameState.lives <= 1 ? 
+                'status-value warning' : 'status-value';
+        }
+        
+        function endGame(victory) {
+            gameState.gameActive = false;
+            
+            if (victory) {
+                playSound(soundElements.correctSound);
+                showResult("🎉 CONGRATULATIONS! YOU SURVIVED ALL ROUNDS AND ESCAPED THE BORDERLAND!", true);
+                
+                // Bonus points for victory
+                gameState.score += 1000;
+                updateStatusDisplay();
+                
+                setTimeout(() => {
+                    showGameOverScreen(true);
+                }, 3000);
+            } else {
+                setTimeout(() => {
+                    showGameOverScreen(false);
+                }, 2000);
+            }
+        }
+        
+        function gameOver(reason) {
+            gameState.gameActive = false;
+            
+            playSound(soundElements.incorrectSound);
+            showResult(`💀 GAME OVER: ${reason}. Your final score: ${gameState.score}`, false);
+            
+            // Save score to leaderboard
+            saveScoreToLeaderboard();
+            
+            setTimeout(() => {
+                showGameOverScreen(false);
+            }, 3000);
+        }
+        
+        function showGameOverScreen(victory) {
+            // Save final score
+            saveScoreToLeaderboard();
+            
+            // Show leaderboard
+            showScreen('leaderboard');
+            loadLeaderboard();
+        }
+        
+        // ============================================
+        // LEADERBOARD SYSTEM
+        // ============================================
+        function saveScoreToLeaderboard() {
+            leaderboardRef.add({
+                playerId: gameState.playerId,
+                playerName: gameState.playerName,
+                score: gameState.score,
+                visaDays: gameState.visaDays,
+                lives: gameState.lives,
+                roundsCompleted: gameState.currentRound,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                gameId: gameState.currentGameId
+            }).catch(error => {
+                console.error("Error saving score: ", error);
+            });
+        }
+        
+        function loadLeaderboard() {
+            leaderboardRef
+                .orderBy('score', 'desc')
+                .limit(10)
+                .get()
+                .then((querySnapshot) => {
+                    leaderboardElements.scoresList.innerHTML = '';
+                    
+                    let rank = 1;
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const scoreItem = document.createElement('li');
+                        scoreItem.className = 'score-item';
+                        
+                        const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Today';
+                        
+                        scoreItem.innerHTML = `
+                            <div class="score-rank">${rank}.</div>
+                            <div class="score-name">${data.playerName}</div>
+                            <div class="score-value">${data.score} pts</div>
+                            <div class="score-date">${date}</div>
+                        `;
+                        
+                        leaderboardElements.scoresList.appendChild(scoreItem);
+                        rank++;
+                    });
+                })
+                .catch(error => {
+                    console.error("Error loading leaderboard: ", error);
+                });
+        }
+        
+        function showGlobalLeaderboard() {
+            alert("Global leaderboard would show top players from all games. In a full implementation, this would filter by date ranges and show more stats.");
+        }
+        
+        // ============================================
+        // SOUND SYSTEM
+        // ============================================
+        function initSound() {
+            // Try to play background music (autoplay may be blocked)
+            if (gameState.musicEnabled) {
+                soundElements.backgroundMusic.play().catch(e => {
+                    console.log("Autoplay blocked. User interaction required.");
+                });
+            }
+        }
+        
+        function playSound(audioElement) {
+            if (gameState.soundEnabled) {
+                audioElement.currentTime = 0;
+                audioElement.play().catch(e => console.log("Audio play failed:", e));
+            }
+        }
+        
+        function toggleMusic() {
+            gameState.musicEnabled = !gameState.musicEnabled;
+            
+            if (gameState.musicEnabled) {
+                soundElements.backgroundMusic.play();
+                soundElements.toggleMusicBtn.innerHTML = '<i class="fas fa-music"></i>';
+                soundElements.toggleMusicBtn.style.borderColor = 'var(--border-green)';
+            } else {
+                soundElements.backgroundMusic.pause();
+                soundElements.toggleMusicBtn.innerHTML = '<i class="fas fa-music-slash"></i>';
+                soundElements.toggleMusicBtn.style.borderColor = 'var(--border-red)';
+            }
+        }
+        
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            
+            if (gameState.soundEnabled) {
+                soundElements.toggleSoundBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                soundElements.toggleSoundBtn.style.borderColor = 'var(--border-green)';
+            } else {
+                soundElements.toggleSoundBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                soundElements.toggleSoundBtn.style.borderColor = 'var(--border-red)';
+            }
+        }
+        
+        // ============================================
+        // UI HELPER FUNCTIONS
+        // ============================================
+        function showScreen(screenName) {
+            // Hide all screens
+            Object.values(screens).forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            // Show requested screen
+            screens[screenName].classList.add('active');
+        }
+        
+        function changePlayerName() {
+            const newName = prompt("Enter new player name:", gameState.playerName);
+            if (newName && newName.trim() !== "") {
+                gameState.playerName = newName.trim();
+                localStorage.setItem('borderlandPlayerName', gameState.playerName);
+                lobbyElements.playerNameDisplay.textContent = gameState.playerName;
+                
+                // Update name in Firebase lobby
+                if (lobbyRef) {
+                    lobbyRef.get().then(doc => {
+                        if (doc.exists) {
+                            const data = doc.data();
+                            const players = data.players || [];
+                            
+                            // Remove old player entry
+                            const oldPlayer = players.find(p => p.id === gameState.playerId);
+                            if (oldPlayer) {
+                                lobbyRef.update({
+                                    players: firebase.firestore.FieldValue.arrayRemove(oldPlayer)
+                                });
+                                
+                                // Add updated player entry
+                                lobbyRef.update({
+                                    players: firebase.firestore.FieldValue.arrayUnion({
+                                        ...oldPlayer,
+                                        name: gameState.playerName
+                                    })
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        
+        function leaveLobby() {
+            if (confirm("Leave the lobby and return to main menu?")) {
+                if (lobbyListener) {
+                    lobbyListener(); // Unsubscribe from lobby updates
+                }
+                
+                // Remove player from Firebase lobby
+                if (lobbyRef) {
+                    lobbyRef.update({
+                        players: firebase.firestore.FieldValue.arrayRemove({
+                            id: gameState.playerId,
+                            name: gameState.playerName,
+                            ready: gameState.ready
+                        })
+                    });
+                }
+                
+                // Reset game state
+                resetGameState();
+                showScreen('lobby');
+                
+                // Create new lobby
+                setupLobby();
+            }
+        }
+        
+        function restartGame() {
+            resetGameState();
+            setupLobby();
+        }
+        
+        function backToLobby() {
+            resetGameState();
+            setupLobby();
+        }
+        
+        function resetGameState() {
+            gameState.visaDays = 7;
+            gameState.lives = 3;
+            gameState.score = 0;
+            gameState.currentRound = 0;
+            gameState.gameActive = false;
+            gameState.inLobby = true;
+            gameState.ready = false;
+            updateStatusDisplay();
+        }
+        
+        // ============================================
+        // INITIALIZE GAME ON LOAD
+        // ============================================
+        window.addEventListener('DOMContentLoaded', initGame);
+        
+        // Prevent right-click context menu for game immersion
+        document.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.game-grid') || e.target.closest('.choices-container')) {
+                e.preventDefault();
+            }
+        });
+        rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /lobbies/{lobby} {
+      allow read, write: if true;
+    }
+    match /leaderboard/{entry} {
+      allow read, write: if true;
+    }
+  }
+}
+    </script>
+</body>
+</html>
